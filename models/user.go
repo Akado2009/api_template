@@ -42,18 +42,23 @@ func (db *DB) GetUser(userID int) (*UserData, pq.ErrorCode, error) {
 }
 
 // SaveUser method
-func (db *DB) SaveUser(userData UserData) (pq.ErrorCode, error) {
+func (db *DB) SaveUser(userData UserData) (int, error) {
 
-	var errorCode pq.ErrorCode
-
-	rows, err := db.Queryx("select * from users.user_save($1, $2, $3, $4, $5, $6)", userData.UserID, userData.IsActive, userData.FirstName, userData.LastName, userData.Email, userData.PswdHash)
+	rows, err := db.Queryx("select user_id from users.user_save($1, $2, $3, $4, $5, $6)", userData.UserID, userData.IsActive, userData.FirstName, userData.LastName, userData.Email, userData.PswdHash)
 	defer rows.Close()
 	if err != nil {
-		if err, ok := err.(*pq.Error); ok {
-			errorCode = err.Code
-		}
-		return errorCode, err
+		return 0, err
 	}
 
-	return errorCode, nil
+	uData := new(UserData)
+
+	for rows.Next() {
+		err = rows.StructScan(&uData)
+		if err != nil {
+			return 0, err
+		}
+		break
+	}
+
+	return uData.UserID, nil
 }

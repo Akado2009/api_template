@@ -26,7 +26,7 @@ func (c *ConnectionData) ToString() string {
 
 //Datastore interface
 type Datastore interface {
-	SaveUser(UserData) (pq.ErrorCode, error)
+	SaveUser(UserData) (int, error)
 	GetUser(int) (*UserData, pq.ErrorCode, error)
 }
 
