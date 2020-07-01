@@ -31,6 +31,16 @@ type AuthFormData struct {
 	Login    string `json:"login"`
 }
 
+func getNewPassword() (string, error) {
+	guidBytes := make([]byte, 16)
+	_, err := rand.Read(guidBytes)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf("%x", guidBytes[0:4]), nil
+}
+
 func checkAuthToken(authHeaderValue string, decrypetKey string) (bool, error) {
 
 	tokenJSON, _ := decryptTextAES256(strings.ReplaceAll(authHeaderValue, `"`, ""), decrypetKey)

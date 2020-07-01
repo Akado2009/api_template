@@ -1,7 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -15,6 +14,15 @@ type SMTPServerData struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
+
+/*
+message := `To: "Some User" <someuser@example.com>
+From: "Other User" <otheruser@example.com>
+Subject: Testing Email From Go!!
+
+This is the message we are sending. That's it!
+`
+*/
 
 func sendEmail(from string, to string, host string, password string, msg string) error {
 
@@ -43,14 +51,4 @@ func converBody2JSON(data io.Reader, v interface{}) error {
 	}
 
 	return nil
-}
-
-func getNewPassword() (string, error) {
-	guidBytes := make([]byte, 16)
-	_, err := rand.Read(guidBytes)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("%x", guidBytes[0:4]), nil
 }

@@ -53,7 +53,11 @@ func (env *Env) registrationHandler(w http.ResponseWriter, r *http.Request) {
 			`Subject: Ваш пароль\n
 			`+password)
 		if err != nil {
-			fmt.Println("email error", err)
+			fmt.Fprintf(w, "%s", getJSONAnswer("",
+				false,
+				err.Error(),
+				""))
+			return
 		}
 
 		token, _ := encryptTextAES256Base64(getTokenJSON(userID), env.crypto.AES256Key)

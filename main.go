@@ -48,5 +48,9 @@ func main() {
 	//get an data with token example
 	router.HandleFunc("/gettestdatabytoken/", env.getTestDataByToken).Methods("POST", "OPTIONS")
 
+	//forgot password with sending special link
+
+	//special rout for renew password and send it via email
+
 	log.Fatal(http.ListenAndServe(":8080", router))
 }
