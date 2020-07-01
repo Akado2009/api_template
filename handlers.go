@@ -2,73 +2,72 @@ package main
 
 import (
 	"api_template/models"
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"strconv"
-
-	"github.com/gorilla/mux"
+	"regexp"
 )
 
-func (env *Env) getUserHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, http.StatusText(405), 405)
-		return
-	}
-
-	vars := mux.Vars(r)
-	userID, err := strconv.Atoi(vars["user_id"])
-	if err != nil {
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-
-	userData, _, err := env.db.GetUser(userID)
-	if err != nil {
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-
-	returnJSON, err := json.Marshal(userData)
-	if err != nil {
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	fmt.Fprintf(w, "%s", returnJSON)
-}
-
-func (env *Env) saveUserHandler(w http.ResponseWriter, r *http.Request) {
+func (env *Env) registrationHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		http.Error(w, http.StatusText(405), 405)
 		return
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-
-	bodyString := string(body)
-
 	var userData models.UserData
-	err = json.Unmarshal([]byte(bodyString), &userData)
-	if err != nil {
-		http.Error(w, http.StatusText(500), 500)
-		return
-	}
-
-	_, err = env.db.SaveUser(userData)
+	err := converBody2JSON(r.Body, &userData)
 	if err != nil {
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	fmt.Fprintf(w, "%s", `{"result":"ok"}`)
+
+	//check email format
+	re := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	if !re.MatchString(userData.Email) {
+		fmt.Fprintf(w, "%s", getJSONAnswer("",
+			false,
+			"Некорректный EMail формат!",
+			""))
+		return
+	}
+
+	//generate password and send it to email
+	password, err := getNewPassword()
+	if err != nil {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	userData.PswdHashB = getSHA256Bytes(password, env.crypto.SHA256Salt)
+
+	userID, errorCode, err := env.db.SaveUser(userData)
+	if err != nil && errorCode != "22024" {
+		http.Error(w, http.StatusText(500), 500)
+		return
+	}
+
+	if userID > 0 {
+
+		err = sendEmail(env.smtp.Email, userData.Email, env.smtp.Host, env.smtp.Password,
+			`Subject: Ваш пароль\n
+			`+password)
+		if err != nil {
+			fmt.Println("email error", err)
+		}
+
+		token, _ := encryptTextAES256Base64(getTokenJSON(userID), env.crypto.AES256Key)
+
+		fmt.Fprintf(w, "%s", getJSONAnswer(token,
+			true,
+			"",
+			""))
+	} else {
+		fmt.Fprintf(w, "%s", getJSONAnswer("",
+			false,
+			"Такой EMail уже используется!",
+			""))
+	}
 }
 
 func (env *Env) getAuthToken(w http.ResponseWriter, r *http.Request) {
@@ -77,38 +76,42 @@ func (env *Env) getAuthToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	body, err := ioutil.ReadAll(r.Body)
+	var afd AuthFormData
+	err := converBody2JSON(r.Body, &afd)
 	if err != nil {
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
-	bodyString := string(body)
-
-	type AuthFormData struct {
-		Password string `json:"password"`
-		Login    string `json:"login"`
-	}
-
-	var afd AuthFormData
-	err = json.Unmarshal([]byte(bodyString), &afd)
+	userData, _, err := env.db.GetUserByAuth(afd.Login, getSHA256Bytes(afd.Password, env.crypto.SHA256Salt))
 	if err != nil {
-		fmt.Println(err)
 		http.Error(w, http.StatusText(500), 500)
 		return
 	}
 
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 
-	if afd.Login != "devers@inbox.ru" || afd.Password != "222" {
-		fmt.Fprintf(w, "%s", `{"payload":"tdgdgYBatebe7453hsnY", "accepted":false}`)
+	if userData.UserID > 0 {
+
+		token, _ := encryptTextAES256Base64(getTokenJSON(userData.UserID), env.crypto.AES256Key)
+
+		fmt.Fprintf(w, "%s", getJSONAnswer(token,
+			true,
+			"",
+			""))
+
 	} else {
-		fmt.Fprintf(w, "%s", `{"payload":"tdgdgarwtebe7453hsnY", "accepted":true}`)
+
+		fmt.Fprintf(w, "%s", getJSONAnswer("",
+			false,
+			"Не верный логин или пароль!",
+			""))
 	}
 
 }
 
 func (env *Env) getTestDataByToken(w http.ResponseWriter, r *http.Request) {
+
 	if r.Method != "POST" && r.Method != "OPTIONS" {
 		http.Error(w, http.StatusText(405), 405)
 		return
@@ -121,21 +124,24 @@ func (env *Env) getTestDataByToken(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authHeaderValue := r.Header.Get("Authorization")
-
-	type AuthTokenData struct {
-		Payload  string `json:"payload"`
-		Accepted bool   `json:"accepted"`
-	}
-
-	var atd AuthTokenData
-	err := json.Unmarshal([]byte(authHeaderValue), &atd)
+	checked, err := checkAuthToken(r.Header.Get("Authorization"), env.crypto.AES256Key)
 	if err != nil {
-		fmt.Println(err)
-		http.Error(w, http.StatusText(500), 500)
+		fmt.Println(err.Error())
+		http.Error(w, http.StatusText(405), 405)
 		return
 	}
 
-	fmt.Println(atd.Payload)
-	fmt.Fprintf(w, "%s", `{"data":2}`)
+	if !checked {
+		fmt.Fprintf(w, "%s", getJSONAnswer("",
+			false,
+			"Невалидный токен!",
+			""))
+
+		return
+	}
+
+	fmt.Fprintf(w, "%s", getJSONAnswer("",
+		true,
+		"",
+		`{"param":"value"}`))
 }

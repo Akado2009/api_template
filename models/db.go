@@ -21,13 +21,14 @@ type ConnectionData struct {
 
 //ToString funct
 func (c *ConnectionData) ToString() string {
-	return fmt.Sprintf("host=%s port=%v dbname=%s user=%s password=%s", c.Host, strconv.Itoa(c.Port), c.Dbname, c.User, c.Password)
+	return fmt.Sprintf("host=%s port=%v dbname=%s user=%s password=%s sslmode=disable", c.Host, strconv.Itoa(c.Port), c.Dbname, c.User, c.Password)
 }
 
 //Datastore interface
 type Datastore interface {
-	SaveUser(UserData) (int, error)
+	SaveUser(UserData) (int, pq.ErrorCode, error)
 	GetUser(int) (*UserData, pq.ErrorCode, error)
+	GetUserByAuth(string, []byte) (*UserData, pq.ErrorCode, error)
 }
 
 //DB struct

@@ -11,29 +11,42 @@ import (
 
 //Env struct
 type Env struct {
-	db models.Datastore
+	db     models.Datastore
+	crypto CryptoData
+	smtp   SMTPServerData
 }
 
 func main() {
 
 	connectionData := models.ConnectionData{}
 	if gonfig.GetConf("config/db.json", &connectionData) != nil {
-		log.Panic("load confg error")
+		log.Panic("load db confg error")
+	}
+
+	cryptoData := CryptoData{}
+	if gonfig.GetConf("config/crypto.json", &cryptoData) != nil {
+		log.Panic("load crypto confg error")
+	}
+
+	smtpServerData := SMTPServerData{}
+	if gonfig.GetConf("config/smtp.json", &smtpServerData) != nil {
+		log.Panic("load smtp confg error")
 	}
 
 	db, err := models.InitDB(connectionData.ToString())
 	if err != nil {
 		log.Panic(err)
 	}
-	env := &Env{db}
+	env := &Env{db, cryptoData, smtpServerData}
 
 	router := mux.NewRouter()
 
+	//login method
 	router.HandleFunc("/getauthtoken/", env.getAuthToken).Methods("POST")
+	//registration method
+	router.HandleFunc("/registration/", env.registrationHandler).Methods("POST")
+	//get an data with token example
 	router.HandleFunc("/gettestdatabytoken/", env.getTestDataByToken).Methods("POST", "OPTIONS")
-
-	router.HandleFunc("/saveuser/", env.saveUserHandler).Methods("POST")
-	router.HandleFunc("/getuser/{user_id}", env.getUserHandler).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

@@ -2,11 +2,13 @@ package main
 
 import (
 	"api_template/models"
+	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/lib/pq"
+	"github.com/tkanos/gonfig"
 )
 
 type mockDB struct{}
@@ -19,27 +21,58 @@ func (mdb *mockDB) GetUser(userID int) (*models.UserData, pq.ErrorCode, error) {
 	userData.FirstName = "test"
 	userData.LastName = "test"
 	userData.Email = "test@test.test"
-	userData.PswdHash = "test"
 
 	var errorCode pq.ErrorCode
 
 	return userData, errorCode, nil
 }
 
-func (mdb *mockDB) SaveUser(userData models.UserData) (pq.ErrorCode, error) {
-	//TODO make real save
-	return "", nil
+func (mdb *mockDB) GetUserByAuth(email string, pswdHashB []byte) (*models.UserData, pq.ErrorCode, error) {
+
+	userData := new(models.UserData)
+	userData.UserID = 1
+	userData.IsActive = true
+	userData.FirstName = "test"
+	userData.LastName = "test"
+	userData.Email = "test@test.test"
+
+	var errorCode pq.ErrorCode
+
+	return userData, errorCode, nil
 }
 
-//TestGetQuestionsJSON func
-func TestGetCatalogItemListJSON(t *testing.T) {
+func (mdb *mockDB) SaveUser(userData models.UserData) (int, pq.ErrorCode, error) {
+
+	var errorCode pq.ErrorCode
+
+	//TODO make real save
+	return 0, errorCode, nil
+}
+
+//TestGetTestDataByToken func
+func TestGetTestDataByToken(t *testing.T) {
+
+	cryptoData := CryptoData{}
+	if gonfig.GetConf("config/crypto.json", &cryptoData) != nil {
+		log.Panic("load crypto confg error")
+	}
+
+	smtpServerData := SMTPServerData{}
+	if gonfig.GetConf("config/smtp.json", &smtpServerData) != nil {
+		log.Panic("load smtp confg error")
+	}
+
+	env := Env{db: &mockDB{}, crypto: cryptoData, smtp: smtpServerData}
+
 	rec := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/books", nil)
+	req, _ := http.NewRequest("POST", "/gettestdatabytoken/", nil)
 
-	env := Env{db: &mockDB{}}
-	http.HandlerFunc(env.getUserHandler).ServeHTTP(rec, req)
+	token, _ := encryptTextAES256Base64(getTokenJSON(1), env.crypto.AES256Key)
+	req.Header.Add("Authorization", token)
 
-	expected := `{"user_id":1,"is_active":"true","first_name":"test","last_name":"test","email":"test@test.test","pswd_hash":"test"}`
+	http.HandlerFunc(env.getTestDataByToken).ServeHTTP(rec, req)
+
+	expected := `{"accepted":true, "token":"", "reason":"", "data":"{"param":"value"}"}`
 	if expected != rec.Body.String() {
 		t.Errorf("\n...expected = %v\n...obtained = %v", expected, rec.Body.String())
 	}
