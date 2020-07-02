@@ -47,10 +47,10 @@ func main() {
 	router.HandleFunc("/registration/", env.registrationHandler).Methods("POST")
 	//get an data with token example
 	router.HandleFunc("/gettestdatabytoken/", env.getTestDataByToken).Methods("POST", "OPTIONS")
-
 	//forgot password with sending special link
-
+	router.HandleFunc("/getpasswordrestorelink/", env.sendRestorePasswordLinkHandler).Methods("POST")
 	//special rout for renew password and send it via email
+	router.HandleFunc("/getpasswordrestoreemail/{token}", env.sendRestorePasswordEmailHandler).Methods("GET")
 
 	log.Fatal(http.ListenAndServe(":8080", router))
 }

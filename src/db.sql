@@ -6,11 +6,36 @@ user_id int not null,
 is_active boolean not null,
 first_name varchar(50),
 last_name varchar(50),
-email varchar(50),
+email varchar(50) not null,
 pswd_hash_bytes bytea not null
 )
 
 ALTER TABLE users.users ADD CONSTRAINT PK_users PRIMARY KEY(user_id)
+
+CREATE INDEX ON users.users(email)
+
+CREATE OR REPLACE FUNCTION users.user_getByEmail(
+	_email varchar(50))
+    RETURNS TABLE(user_id integer, is_active boolean, first_name character varying, last_name character varying, email character varying) 
+    LANGUAGE 'plpgsql'
+
+    COST 100
+    VOLATILE 
+    ROWS 1000
+AS $BODY$	
+BEGIN
+
+RETURN QUERY
+	SELECT	u.user_id
+			, u.is_active
+			, u.first_name
+			, u.last_name
+			, u.email
+	FROM	users.users u
+	WHERE	u.email = _email;
+			
+END;
+$BODY$;
 
 CREATE OR REPLACE FUNCTION users.user_get(
 	_user_id integer)

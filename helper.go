@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"net/smtp"
+	"regexp"
 )
 
 //SMTPServerData struct for emails
@@ -23,6 +24,12 @@ Subject: Testing Email From Go!!
 This is the message we are sending. That's it!
 `
 */
+
+func checkEmailFormat(email string) bool {
+
+	re := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+	return re.MatchString(email)
+}
 
 func sendEmail(from string, to string, host string, password string, msg string) error {
 

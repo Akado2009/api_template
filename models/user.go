@@ -46,6 +46,37 @@ func (db *DB) GetUserByAuth(email string, pswdHashB []byte) (*UserData, pq.Error
 	return userList[0], errorCode, nil
 }
 
+// GetUserByEmail method
+func (db *DB) GetUserByEmail(email string) (*UserData, pq.ErrorCode, error) {
+
+	var errorCode pq.ErrorCode
+
+	rows, err := db.Queryx("SELECT user_id, is_active, first_name, last_name, email from users.user_getByEmail($1)", email)
+	if err != nil {
+		if err, ok := err.(*pq.Error); ok {
+			errorCode = err.Code
+		}
+		return nil, errorCode, err
+	}
+	defer rows.Close()
+
+	userList := make([]*UserData, 0)
+
+	for rows.Next() {
+		userData := new(UserData)
+		err = rows.StructScan(&userData)
+		if err != nil {
+			return nil, errorCode, err
+		}
+		userList = append(userList, userData)
+	}
+
+	if len(userList) != 1 {
+		return nil, errorCode, nil
+	}
+	return userList[0], errorCode, nil
+}
+
 // GetUser method
 func (db *DB) GetUser(userID int) (*UserData, pq.ErrorCode, error) {
 
@@ -78,7 +109,7 @@ func (db *DB) GetUser(userID int) (*UserData, pq.ErrorCode, error) {
 }
 
 // SaveUser method
-func (db *DB) SaveUser(userData UserData) (int, pq.ErrorCode, error) {
+func (db *DB) SaveUser(userData *UserData) (int, pq.ErrorCode, error) {
 
 	var errorCode pq.ErrorCode
 

@@ -27,21 +27,16 @@ func (mdb *mockDB) GetUser(userID int) (*models.UserData, pq.ErrorCode, error) {
 	return userData, errorCode, nil
 }
 
-func (mdb *mockDB) GetUserByAuth(email string, pswdHashB []byte) (*models.UserData, pq.ErrorCode, error) {
-
-	userData := new(models.UserData)
-	userData.UserID = 1
-	userData.IsActive = true
-	userData.FirstName = "test"
-	userData.LastName = "test"
-	userData.Email = "test@test.test"
-
-	var errorCode pq.ErrorCode
-
-	return userData, errorCode, nil
+func (mdb *mockDB) GetUserByEmail(email string) (*models.UserData, pq.ErrorCode, error) {
+	return mdb.GetUser(1)
 }
 
-func (mdb *mockDB) SaveUser(userData models.UserData) (int, pq.ErrorCode, error) {
+func (mdb *mockDB) GetUserByAuth(email string, pswdHashB []byte) (*models.UserData, pq.ErrorCode, error) {
+
+	return mdb.GetUser(1)
+}
+
+func (mdb *mockDB) SaveUser(userData *models.UserData) (int, pq.ErrorCode, error) {
 
 	var errorCode pq.ErrorCode
 
@@ -67,7 +62,7 @@ func TestGetTestDataByToken(t *testing.T) {
 	rec := httptest.NewRecorder()
 	req, _ := http.NewRequest("POST", "/gettestdatabytoken/", nil)
 
-	token, _ := encryptTextAES256Base64(getTokenJSON(1), env.crypto.AES256Key)
+	token, _ := encryptTextAES256Base64(getTokenJSON(1, env.crypto.TokenTTL), env.crypto.AES256Key)
 	req.Header.Add("Authorization", token)
 
 	http.HandlerFunc(env.getTestDataByToken).ServeHTTP(rec, req)

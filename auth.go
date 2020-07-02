@@ -15,14 +15,18 @@ import (
 
 //CryptoData struct
 type CryptoData struct {
-	AES256Key  string `json:"AES256Key"`
-	SHA256Salt string `json:"SHA256Salt"`
+	AES256Key          string `json:"AES256Key"`
+	SHA256Salt         string `json:"SHA256Salt"`
+	TokenTTL           int64  `json:"TokenTTL"`
+	PasswordEmailTTL   int64  `json:"PasswordEmailTTL"`
+	RestorePasswordURL string `json:"RestorePasswordURL"`
 }
 
 //Token struct
 type Token struct {
-	UserID int   `json:"user_id"`
-	TTL    int64 `json:"ttl"`
+	UserID int    `json:"user_id"`
+	TTL    int64  `json:"ttl"`
+	Email  string `json:"email"`
 }
 
 //AuthFormData struct for login/password sending
@@ -54,8 +58,8 @@ func checkAuthToken(authHeaderValue string, decrypetKey string) (bool, error) {
 	return (token.TTL-time.Now().Unix() > 0), nil
 }
 
-func getTokenJSON(userID int) string {
-	return fmt.Sprintf(`{"user_id":%d, "ttl":%d}`, userID, time.Now().Unix()+60)
+func getTokenJSON(userID int, ttl int64) string {
+	return fmt.Sprintf(`{"user_id":%d, "ttl":%d}`, userID, time.Now().Unix()+ttl)
 }
 
 func getSHA256Bytes(text string, salt string) []byte {
@@ -89,14 +93,14 @@ func encryptTextAES256Base64(textString string, keyString string) (string, error
 
 	txt := gcm.Seal(nonce, nonce, text, nil)
 
-	return b64.StdEncoding.EncodeToString([]byte(txt)), nil
+	return b64.RawURLEncoding.EncodeToString([]byte(txt)), nil
 }
 
 func decryptTextAES256(encryptedBase64 string, keyString string) (string, error) {
 
 	key := []byte(keyString)
 
-	ciphertext, err := b64.StdEncoding.DecodeString(encryptedBase64) //[]byte(encryptedText)
+	ciphertext, err := b64.RawURLEncoding.DecodeString(encryptedBase64) //[]byte(encryptedText)
 	if err != nil {
 		return "", err
 	}

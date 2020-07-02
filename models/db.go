@@ -26,9 +26,10 @@ func (c *ConnectionData) ToString() string {
 
 //Datastore interface
 type Datastore interface {
-	SaveUser(UserData) (int, pq.ErrorCode, error)
+	SaveUser(*UserData) (int, pq.ErrorCode, error)
 	GetUser(int) (*UserData, pq.ErrorCode, error)
 	GetUserByAuth(string, []byte) (*UserData, pq.ErrorCode, error)
+	GetUserByEmail(email string) (*UserData, pq.ErrorCode, error)
 }
 
 //DB struct
